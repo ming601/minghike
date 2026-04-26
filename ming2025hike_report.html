@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ming 2025 徒步年度报告</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #2d6a4f;
+    --primary-light: #52b788;
+    --accent: #d62828;
+    --accent2: #f77f00;
+    --bg: #f0f4f0;
+    --card: #ffffff;
+    --text: #1b2820;
+    --muted: #6b7c6f;
+    --border: #d0e0d5;
+    --hr-easy: #74c69d;
+    --hr-aerobic: #40916c;
+    --hr-threshold: #f4a261;
+    --hr-hard: #e76f51;
+    --hr-max: #d62828;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+
+  /* header */
+  .hero {
+    background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 50%, #40916c 100%);
+    color: white;
+    padding: 48px 40px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '⛰';
+    position: absolute;
+    right: 40px;
+    top: 20px;
+    font-size: 120px;
+    opacity: 0.12;
+  }
+  .hero h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+  .hero .subtitle { font-size: 1rem; opacity: 0.85; margin-bottom: 20px; }
+  .hero .tags { display: flex; gap: 10px; flex-wrap: wrap; }
+  .tag { background: rgba(255,255,255,0.18); border-radius: 20px; padding: 4px 14px; font-size: 0.82rem; }
+
+  /* layout */
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .section { margin-bottom: 48px; }
+  .section-title { font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-bottom: 20px; padding-bottom: 8px; border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .section-title .icon { font-size: 1.4rem; }
+
+  /* stat cards */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--card); border-radius: 12px; padding: 20px 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-top: 3px solid var(--primary-light); transition: transform .2s; }
+  .stat-card:hover { transform: translateY(-2px); }
+  .stat-card .val { font-size: 2rem; font-weight: 800; color: var(--primary); line-height: 1.1; }
+  .stat-card .unit { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+  .stat-card .label { font-size: 0.82rem; color: var(--text); margin-top: 4px; }
+  .stat-card.accent { border-top-color: var(--accent2); }
+  .stat-card.accent .val { color: var(--accent2); }
+  .stat-card.red { border-top-color: var(--accent); }
+  .stat-card.red .val { color: var(--accent); }
+
+  /* compare cards */
+  .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .compare-card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .compare-card h4 { font-size: 0.9rem; color: var(--muted); margin-bottom: 12px; }
+  .compare-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .compare-label { font-size: 0.82rem; color: var(--muted); width: 80px; }
+  .compare-bars { flex: 1; margin: 0 10px; }
+  .bar-wrap { position: relative; height: 8px; background: #e8f0eb; border-radius: 4px; margin-bottom: 3px; }
+  .bar-fill { height: 8px; border-radius: 4px; }
+  .bar-2025 { background: var(--primary-light); }
+  .bar-2026 { background: var(--accent2); }
+  .compare-vals { font-size: 0.78rem; text-align: right; min-width: 80px; }
+
+  /* chart containers */
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px; }
+  .chart-card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .chart-card h4 { font-size: 0.9rem; color: var(--muted); margin-bottom: 14px; font-weight: 600; }
+  .chart-card canvas { max-height: 260px; }
+
+  /* HR zones */
+  .hr-zone-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-top: 16px; }
+  .hz { border-radius: 10px; padding: 14px 10px; text-align: center; color: white; }
+  .hz .z-name { font-size: 0.72rem; opacity: 0.9; margin-bottom: 4px; }
+  .hz .z-range { font-size: 0.85rem; font-weight: 700; margin-bottom: 6px; }
+  .hz .z-count { font-size: 1.6rem; font-weight: 800; }
+  .hz .z-pct { font-size: 0.72rem; opacity: 0.85; }
+  .z1 { background: linear-gradient(135deg,#74c69d,#52b788); }
+  .z2 { background: linear-gradient(135deg,#40916c,#1b4332); }
+  .z3 { background: linear-gradient(135deg,#f4a261,#e07020); }
+  .z4 { background: linear-gradient(135deg,#e76f51,#c94020); }
+  .z5 { background: linear-gradient(135deg,#d62828,#9e1515); }
+
+  /* insight boxes */
+  .insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+  .insight { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-left: 4px solid var(--primary-light); }
+  .insight.warn { border-left-color: var(--accent2); }
+  .insight.alert { border-left-color: var(--accent); }
+  .insight h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .insight p, .insight li { font-size: 0.87rem; color: #444; line-height: 1.6; }
+  .insight ul { padding-left: 18px; }
+
+  /* recommendations */
+  .rec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+  .rec-card { background: var(--card); border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+  .rec-header { padding: 14px 20px; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; color: white; }
+  .rec-header.green { background: linear-gradient(90deg, #2d6a4f, #52b788); }
+  .rec-header.orange { background: linear-gradient(90deg, #c74b00, #f77f00); }
+  .rec-header.red { background: linear-gradient(90deg, #9e1515, #d62828); }
+  .rec-header.blue { background: linear-gradient(90deg, #1565c0, #2196f3); }
+  .rec-header.purple { background: linear-gradient(90deg, #6a1b9a, #9c27b0); }
+  .rec-body { padding: 16px 20px; }
+  .rec-body li { font-size: 0.86rem; color: #444; margin-bottom: 8px; line-height: 1.6; padding-left: 4px; }
+  .rec-body li::before { content: '→ '; color: var(--primary); font-weight: 700; }
+
+  /* table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  th { background: var(--primary); color: white; padding: 10px 12px; text-align: center; white-space: nowrap; }
+  td { padding: 8px 12px; text-align: center; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: #f5faf7; }
+  tr:nth-child(even) td { background: #fafcfb; }
+  .highlight-row td { background: #e8f5e9 !important; font-weight: 700; }
+
+  /* progress bar */
+  .prog-row { display: flex; align-items: center; margin-bottom: 14px; gap: 12px; }
+  .prog-label { width: 140px; font-size: 0.83rem; color: var(--text); flex-shrink: 0; }
+  .prog-track { flex: 1; height: 12px; background: #e0eee5; border-radius: 6px; overflow: hidden; }
+  .prog-fill { height: 12px; border-radius: 6px; transition: width .5s; }
+  .prog-val { width: 60px; font-size: 0.82rem; color: var(--muted); text-align: right; flex-shrink: 0; }
+
+  /* tabs for months */
+  .month-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .pill { padding: 5px 14px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; border: 1.5px solid var(--border); color: var(--muted); background: white; transition: all .2s; }
+  .pill.active, .pill:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* footer */
+  footer { background: #1b2820; color: #8ab095; text-align: center; padding: 24px; font-size: 0.8rem; margin-top: 40px; }
+
+  /* misc */
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+  .badge-green { background: #d8f3dc; color: #1b4332; }
+  .badge-orange { background: #ffe8cc; color: #c74b00; }
+  .badge-red { background: #fde0e0; color: #9e1515; }
+  .key-metric { display: flex; gap: 6px; align-items: baseline; }
+  .key-metric .big { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
+  .key-metric .sm { font-size: 0.8rem; color: var(--muted); }
+  
+  @media (max-width: 600px) {
+    .hero { padding: 32px 20px; }
+    .container { padding: 20px 14px; }
+    .hr-zone-grid { grid-template-columns: repeat(3,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <h1>🥾 Ming 2025 徒步年度报告</h1>
+  <div class="subtitle">山在那里，你也在，继续走吧！</div>
+  <div class="tags">
+    <!--<span class="tag">👤 男 · 43岁</span>
+    <span class="tag">📏 172cm · 76kg</span>
+    <span class="tag">🎒 负重 4kg</span>
+    <span class="tag">2025年 54次 / 537km</span>
+    <span class="tag">2026年 Q1已 21次 / 205km</span>
+    <span class="tag">报告生成于 2026-04-26</span>-->
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ===== PART 1: 2025年度总览 ===== -->
+<div class="section">
+  <div class="section-title"><span class="icon">📊</span>一、2025年度核心指标总览</div>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="val">54</div><div class="unit">次</div><div class="label">全年徒步次数</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">537.2</div><div class="unit">km</div><div class="label">总里程</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">27,158</div><div class="unit">m</div><div class="label">总累计爬升</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="val">185.4</div><div class="unit">h</div><div class="label">总运动时长</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">9.95</div><div class="unit">km</div><div class="label">平均单次距离</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">503</div><div class="unit">m</div><div class="label">平均单次爬升</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">20.9</div><div class="unit">min/km</div><div class="label">平均配速</div>
+    </div>
+    <div class="stat-card red">
+      <div class="val">123.1</div><div class="unit">bpm</div><div class="label">年均平均心率</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="val">52.3</div><div class="unit">m/km</div><div class="label">平均爬升率</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">3,666</div><div class="unit">m</div><div class="label">最高海拔（干河坝）</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">19.52</div><div class="unit">km</div><div class="label">最长单次（麦理浩径）</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">6.5</div><div class="unit">天</div><div class="label">平均训练间隔</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h4>📅 各月训练频率与里程</h4>
+      <canvas id="monthlyChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h4>📈 单次距离分布</h4>
+      <canvas id="distChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h4>💓 平均心率趋势（按时间排序）</h4>
+      <canvas id="hrTrendChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h4>⛰️ 单次爬升量分布</h4>
+      <canvas id="gainChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PART 2: 心率分析 ===== -->
+<div class="section">
+  <div class="section-title"><span class="icon">❤️</span>二、心率深度分析</div>
+
+  <div class="insight-grid" style="margin-bottom:20px">
+    <div class="insight">
+      <h4>🧬 最大心率估算</h4>
+      <p>基于运动生理学公式：</p>
+      <ul style="margin-top:6px">
+        <li><b>Tanaka公式（推荐）：</b>208 - 0.7 × 43 = <b>177.9 bpm</b></li>
+        <li><b>Fox公式（传统）：</b>220 - 43 = <b>177 bpm</b></li>
+        <li><b>Gelish公式：</b>207 - 0.7 × 43 = <b>176.9 bpm</b></li>
+        <li>综合取 <b>HRmax ≈ 177 bpm</b></li>
+      </ul>
+    </div>
+    <div class="insight">
+      <h4>💪 静息心率 &amp; 心肺储备</h4>
+      <p>根据数据中<b>最低平均心率 94 bpm</b>（旺山小环线，轻松漫步），结合典型中等体能男性：</p>
+      <ul style="margin-top:6px">
+        <li>估计静息心率约 <b>55～60 bpm</b>（有规律锻炼者）</li>
+        <li>心率储备 (HRR) ≈ 177 - 58 = <b>119 bpm</b></li>
+        <li>平均心率123 bpm对应 HRR% ≈ <b>54%</b>（有氧中等强度）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hr-zone-grid">
+    <div class="hz z1">
+      <div class="z-name">Zone 1 恢复</div>
+      <div class="z-range">&lt;50% HRR<br>&lt;117 bpm</div>
+      <div class="z-count">6</div>
+      <div class="z-pct">11%</div>
+    </div>
+    <div class="hz z2">
+      <div class="z-name">Zone 2 有氧基础</div>
+      <div class="z-range">50-60% HRR<br>117-129 bpm</div>
+      <div class="z-count">28</div>
+      <div class="z-pct">52%</div>
+    </div>
+    <div class="hz z3">
+      <div class="z-name">Zone 3 有氧提升</div>
+      <div class="z-range">60-70% HRR<br>130-141 bpm</div>
+      <div class="z-count">17</div>
+      <div class="z-pct">31%</div>
+    </div>
+    <div class="hz z4">
+      <div class="z-name">Zone 4 乳酸阈</div>
+      <div class="z-range">70-80% HRR<br>142-153 bpm</div>
+      <div class="z-count">3</div>
+      <div class="z-pct">6%</div>
+    </div>
+    <div class="hz z5">
+      <div class="z-name">Zone 5 最大强度</div>
+      <div class="z-range">&gt;80% HRR<br>&gt;153 bpm</div>
+      <div class="z-count">0</div>
+      <div class="z-pct">0%</div>
+    </div>
+  </div>
+
+  <div style="margin-top:18px;padding:14px 18px;background:#f8fff8;border-radius:10px;border:1px solid var(--border);font-size:0.86rem;color:#333;">
+    ⚕️ <b>心率强度解读：</b>2025年全年以 Zone 2（有氧基础）为主，占52%，是经典的耐力建设友好型分布。Zone 3 占31%，说明在高爬升路线时自然升入有氧提升区间。Zone 1仅11%，说明真正的轻松恢复日不多。全年<b>无Zone 5记录</b>，心脏负荷管控得当，对心血管健康非常有利。
+  </div>
+</div>
+
+<!-- ===== PART 3: 运动负荷 ===== -->
+<div class="section">
+  <div class="section-title"><span class="icon">⚖️</span>三、运动负荷 &amp; 体能评估</div>
+
+  <div class="insight-grid">
+    <div class="insight">
+      <h4>🔋 TRIMP（训练冲量）估算</h4>
+      <p>使用简化 TRIMP = 用时(h) × HRR% × k（男性k=0.64e^(1.92×HRR%)）</p>
+      <ul style="margin-top:6px">
+        <li>年均 HRR% ≈ 54%，对应 TRIMP系数 ≈ 1.35</li>
+        <li>年均单次约 3.4h × 1.35 ≈ <b>4.6 TRIMP/次</b></li>
+        <li>全年估计总 TRIMP ≈ <b>~250 AU</b></li>
+        <li>周均训练负荷适中<b></b></li>
+      </ul>
+    </div>
+    <div class="insight">
+      <h4>📐 负重影响评估</h4>
+      <p>负重4kg约占<b>体重5.3%</b></p>
+      <ul style="margin-top:6px">
+        <li>理想负重区间：体重10%以内（≤7.6kg），当前处于<b>安全区</b></li>
+        <li>负重使心率增加约 <b>5-8%</b>，等效距离增加约 <b>3-5%</b></li>
+        <li>长途（&gt;15km）时膝关节额外压力约增加<b>15-20%</b></li>
+        <li>建议：&gt;15km且爬升&gt;800m时，考虑将负重控制在3kg内</li>
+      </ul>
+    </div>
+    <div class="insight">
+      <h4>📊 配速与爬升的关系</h4>
+      <p>数据显示爬升率与配速高度相关</p>
+      <ul style="margin-top:6px">
+        <li>爬升率 &lt;50 m/km：平均配速 ~18-19 min/km</li>
+        <li>爬升率 50-80 m/km：平均配速 ~20-22 min/km</li>
+        <li>爬升率 &gt;80 m/km（如泰山158m/km）：配速自然放缓至23+</li>
+        <li>反映出良好的<b>配速自律能力</b></li>
+      </ul>
+    </div>
+    <div class="insight warn">
+      <h4>⚠️ 关节负荷</h4>
+      <p>膝关节累计负荷可观</p>
+      <ul style="margin-top:6px">
+        <li>下坡时膝关节承受体重 <b>3-5倍</b> = 约228-380kg</li>
+        <li>加上负重后约 <b>243-400kg</b></li>
+        <li>全年下降总量 <b>26,822m</b>，膝关节累计负荷可观</li>
+        <li>每减1kg体重，膝关节下坡压力减少约 <b>3-5kg</b></li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;">
+    <h4 style="font-size:0.9rem;color:var(--muted);margin-bottom:14px;">主要体能指标对应水平（同龄男性对比）</h4>
+    <div class="prog-row">
+      <div class="prog-label">年度里程</div>
+      <div class="prog-track"><div class="prog-fill" style="width:78%;background:linear-gradient(90deg,#52b788,#2d6a4f);"></div></div>
+      <div class="prog-val">537km ⬆️</div>
+    </div>
+    <div class="prog-row">
+      <div class="prog-label">年度爬升</div>
+      <div class="prog-track"><div class="prog-fill" style="width:82%;background:linear-gradient(90deg,#52b788,#2d6a4f);"></div></div>
+      <div class="prog-val">27,158m ⬆️</div>
+    </div>
+    <div class="prog-row">
+      <div class="prog-label">训练频率</div>
+      <div class="prog-track"><div class="prog-fill" style="width:85%;background:linear-gradient(90deg,#52b788,#2d6a4f);"></div></div>
+      <div class="prog-val">54次/年 ⬆️</div>
+    </div>
+    <div class="prog-row">
+      <div class="prog-label">心率控制</div>
+      <div class="prog-track"><div class="prog-fill" style="width:88%;background:linear-gradient(90deg,#52b788,#1b4332);"></div></div>
+      <div class="prog-val">123bpm ✅</div>
+    </div>
+    <div class="prog-row">
+      <div class="prog-label">高海拔适应</div>
+      <div class="prog-track"><div class="prog-fill" style="width:60%;background:linear-gradient(90deg,#f4a261,#e07020);"></div></div>
+      <div class="prog-val">3666m 中等</div>
+    </div>
+    <div class="prog-row">
+      <div class="prog-label">负重能力</div>
+      <div class="prog-track"><div class="prog-fill" style="width:55%;background:linear-gradient(90deg,#f4a261,#e07020);"></div></div>
+      <div class="prog-val">4kg 适中</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PART 4: 2025 vs 2026 对比 ===== -->
+<div class="section">
+  <div class="section-title"><span class="icon">🔄</span>四、2025 vs 2026 对比分析（截至2026-04）</div>
+
+  <div class="stat-grid">
+    <div class="stat-card accent">
+      <div class="val">21</div><div class="unit">次</div><div class="label">2026已完成（Q1+）</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="val">205.5</div><div class="unit">km</div><div class="label">2026总里程</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="val">13,523</div><div class="unit">m</div><div class="label">2026总爬升</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">644</div><div class="unit">m/次</div><div class="label">2026平均爬升 ↑28%</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">69.9</div><div class="unit">m/km</div><div class="label">2026爬升率 ↑34%</div>
+    </div>
+    <div class="stat-card red">
+      <div class="val">126.0</div><div class="unit">bpm</div><div class="label">2026平均心率 ↑2.9</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">19.7</div><div class="unit">min/km</div><div class="label">2026配速 ↑6%↑（更快）</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">9.79</div><div class="unit">km</div><div class="label">2026平均距离 ~持平</div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;" class="chart-grid">
+    <div class="chart-card">
+      <h4>📊 2025 vs 2026 关键指标对比</h4>
+      <canvas id="compareChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h4>🗺️ 2026已完成路线爬升率</h4>
+      <canvas id="gain26Chart"></canvas>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;" class="insight-grid">
+    <div class="insight">
+      <h4>📈 2026年最显著进步</h4>
+      <ul>
+        <li><b>爬升率从52→70 m/km</b>，提升34%，说明主动选择了更有挑战的山地路线</li>
+        <li><b>配速提升6%</b>（20.9→19.7 min/km），在爬升更多的情况下速度反而更快</li>
+        <li>香港鸡公岭（93.9 m/km）、杭州标毅（87.3 m/km）等高难度路线均完成良好</li>
+        <li>长治西太行英姑峡19.09km是2026最长距离，显示超长耐力储备充足</li>
+      </ul>
+    </div>
+    <div class="insight warn">
+      <h4>⚠️ 需关注的变化</h4>
+      <ul>
+        <li>平均心率从123→126 bpm，上升2.9 bpm，与爬升强度增加有关</li>
+        <li>泰山爬升率158 m/km（历史最高），配速需更谨慎管理</li>
+        <li>2026频率若维持约每周1次，全年可达50+次，需注意累积疲劳</li>
+        <li>贵州、杭州等连续行程需关注恢复间隔，避免疲劳叠加</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PART 5: 2025数据明细 ===== -->
+<div class="section">
+  <div class="section-title"><span class="icon">📋</span>五、2025年全年数据明细</div>
+  <div class="tbl-wrap">
+    <table id="hikeTable">
+      <thead>
+        <tr>
+          <th>#</th><th>日期</th><th>路线名称</th><th>距离(km)</th><th>爬升(m)</th><th>下降(m)</th><th>用时</th><th>平均心率</th><th>海拔(m)</th><th>爬升率(m/km)</th>
+        </tr>
+      </thead>
+      <tbody id="hikeBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== PART 6: 建议 ===== -->
+<div class="section">
+  <div class="section-title"><span class="icon">💡</span>六、综合训练建议与后续规划</div>
+  <div class="rec-grid">
+    <div class="rec-card">
+      <div class="rec-header green">🎯 训练频率与周期化</div>
+      <div class="rec-body">
+        <ul>
+          <li>2025年平均间隔6.5天/中位4天，节奏已很好，建议继续保持<b>每周1-2次</b>的主训练</li>
+          <li>引入"2+1"周期：连续2周高强度（距离/爬升较大），第3周安排1次轻松恢复（≤7km，爬升&lt;300m）</li>
+          <li>每月设1次"长距离日"目标15-20km，对应全程超长挑战做基础训练</li>
+          <li>连续两天徒步时，第二天应降低20-30%强度，避免疲劳叠加</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rec-card">
+      <div class="rec-header orange">❤️ 心率管理策略</div>
+      <div class="rec-body">
+        <ul>
+          <li>HRmax≈177，建议长途徒步全程平均心率控制在<b>117-134 bpm</b>（Zone 2-3）</li>
+          <li>当前26%的次数超过130bpm，属合理比例；但平均心率≥140bpm时（如鸡公岭138/麦理浩径温岭版149）需确认非持续高心率</li>
+          <li>引入"MAF（最大有氧功能）训练"：设定上限心率137，保持该心率以下徒步，有助于提升有氧基础</li>
+          <li>爬升段控制心率，可采用"上坡心率不超过140"的实时监控策略</li>
+          <li>高海拔（&gt;2500m）时心率天然偏高，HRmax应下调5-10%评估</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rec-card">
+      <div class="rec-header red">🦵 膝关节保护（重中之重）</div>
+      <div class="rec-body">
+        <ul>
+          <li>全年下降26,822m，是膝关节累积伤害的主要来源——下坡比上坡更伤膝</li>
+          <li>使用<b>双杖</b>（非单杖）：可减少膝关节冲击约22%，对下坡尤关键</li>
+          <li>下坡步法：膝微弯（10-15°），步幅缩短，避免锁膝直腿</li>
+          <li>补充<b>胶原蛋白（10g/天）+ 维生素C</b>有助于软骨维护（运动前后服用）</li>
+          <li>每次徒步后做<b>股四头肌+腘绳肌离心拉伸</b>3-5分钟，减少疲劳积累</li>
+          <li>如出现膝盖内侧疼痛（鹅足滑囊炎），应立即停止下坡并休息&gt;5天</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rec-card">
+      <div class="rec-header blue">🎒 负重优化建议</div>
+      <div class="rec-body">
+        <ul>
+          <li>当前4kg在安全范围，但可进一步优化装备减重</li>
+          <li>&gt;15km路线：目标控制背包重量在<b>3-3.5kg</b>以内（减少水量、轻量化餐食）</li>
+          <li>高爬升（&gt;800m累计）路线：可考虑<b>使用胸带+腰带将重心下移</b>，降低上身疲劳</li>
+          <li>登山杖使用可减轻约15%的膝关节承重，等效于"减重约11kg"的效果</li>
+          <li>若进一步挑战20km+路线，建议提前1-2周做相同负重的适应训练</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rec-card">
+      <div class="rec-header purple">🏔️ 2026年度目标建议</div>
+      <div class="rec-body">
+        <ul>
+          <li><b>里程目标：</b>全年600km+（2025年537km基础上提升12%）</li>
+          <li><b>爬升目标：</b>全年30,000m+（已完成13,523m，完成45%）</li>
+          <li><b>单次挑战目标：</b>完成1次25km+路线 &amp; 1次累计爬升1500m+路线</li>
+          <li><b>高海拔体验：</b>若有机会，规划一次4000-4500m以上的高原徒步（建议提前3天适应）</li>
+          <li><b>强度分布目标：</b>保持Zone 2在50%以上，Zone 3控制在35%以内</li>
+          <li>麦理浩径全程分段（共100km）——按2025-2026节奏，全程串联是可期目标</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rec-card">
+      <div class="rec-header green">🌡️ 恢复 &amp; 营养建议</div>
+      <div class="rec-body">
+        <ul>
+          <li><b>徒步后30分钟内</b>：摄入碳水+蛋白质（20-30g蛋白）促进肌肉修复</li>
+          <li>每日蛋白质目标：76kg × 1.6g = <b>约120g/天</b>（训练日可增至140g）</li>
+          <li>长途结束后1-2天：主动安排<b>15-20分钟低强度步行</b>（非休息不动），加速乳酸代谢</li>
+          <li>睡眠是最重要的恢复手段：保证<b>7-8小时</b>，华为手表监测恢复评分&gt;75分再进行下次高强度训练</li>
+          <li>电解质补充：长途（&gt;3h）中每小时补充含钠电解质（避免低钠血症）</li>
+          <li>体重目标：若能减<b>3-4kg</b>，膝关节压力下降约15%，对长期可持续性帮助巨大</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PART 7: 总结 ===== -->
+<div class="section">
+  <div class="section-title"><span class="icon">🏅</span>七、综合评价总结</div>
+  <div style="background:var(--card);border-radius:14px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px;">
+      <div style="text-align:center;padding:16px;background:#f0faf4;border-radius:10px;">
+        <div style="font-size:2.5rem;">⭐⭐⭐⭐</div>
+        <div style="font-weight:700;margin-top:6px;color:var(--primary);">训练一致性</div>
+        <div style="font-size:0.82rem;color:var(--muted);margin-top:4px;">54次/537km，全年无明显断档</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#f0faf4;border-radius:10px;">
+        <div style="font-size:2.5rem;">⭐⭐⭐⭐½</div>
+        <div style="font-weight:700;margin-top:6px;color:var(--primary);">心肺功能</div>
+        <div style="font-size:0.82rem;color:var(--muted);margin-top:4px;">Zone 2主导，心率稳定可控</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#f0faf4;border-radius:10px;">
+        <div style="font-size:2.5rem;">⭐⭐⭐⭐</div>
+        <div style="font-weight:700;margin-top:6px;color:var(--primary);">2026进步趋势</div>
+        <div style="font-size:0.82rem;color:var(--muted);margin-top:4px;">爬升率+34%，配速+6%</div>
+      </div>
+    </div>
+    <div style="font-size:0.9rem;line-height:1.9;color:#333;">
+      <p>综合来看，<b>这是一份相当出色的徒步训练档案</b>。能够全年完成54次徒步、累积537km、27,158m爬升，训练频率和总量均处于同龄运动爱好者的<b>前20%水平</b>。</p>
+      <br>
+      <p>心率管理是最大亮点：全年无Zone 5记录，Zone 2占比52%，说明有氧基础工作扎实，这是维持长期运动健康的最佳实践。</p>
+      <br>
+      <p>2026年的显著变化是<b>爬升难度主动提升</b>——爬升率从52→70 m/km，反映出在保持相同频率的前提下，有意识地选择更有挑战性的路线，是训练进阶的正确方向。配速在更高爬升下反而提升，说明整体运动能力有实质性提高。</p>
+      <br>
+      <p>最需要关注的风险点是<b>膝关节累积负荷</b>——全年26,822m的下降量对膝关节考验较大，建议在装备（双杖）、体重管理和下坡技术三个维度同步强化。</p>
+      <br>
+      <p>总体建议：保持当前节奏，逐步提升单次挑战上限，加入周期化恢复设计，重点保护膝关节，2026年全年600km+、30,000m+爬升的目标完全可达。</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<footer>
+  📊 数据来源：ming2025.xlsx（54条）· ming2026-1-4.xlsx（21条）· 分析生成：2026-04-26<br>
+  本报告基于华为手表运动数据，心率区间采用Tanaka公式（HRmax=177bpm），仅供个人参考。
+</footer>
+
+<script>
+// ===== 数据 =====
+const data2025 = [
+  {date:'2025-01-06',title:'苏州-五峰山中国地图',dist:11.21,gain:690,loss:681,time:'03:58:55',hr:130,alt:110},
+  {date:'2025-01-07',title:'苏州-光福小三尖',dist:9.10,gain:463,loss:452,time:'02:34:18',hr:118,alt:239},
+  {date:'2025-01-12',title:'苏州-灵兰线',dist:12.20,gain:729,loss:713,time:'04:10:58',hr:127,alt:190},
+  {date:'2025-01-13',title:'苏州-旺山小环线',dist:7.16,gain:280,loss:267,time:'02:01:04',hr:109,alt:249},
+  {date:'2025-01-19',title:'苏州-阳树线',dist:7.66,gain:625,loss:630,time:'03:02:10',hr:116,alt:338},
+  {date:'2025-01-22',title:'苏州-灵岩山环线',dist:9.81,gain:678,loss:669,time:'03:23:16',hr:127,alt:194},
+  {date:'2025-01-30',title:'南昌-铁壁山庄环线',dist:9.66,gain:590,loss:528,time:'03:37:40',hr:116,alt:992},
+  {date:'2025-02-04',title:'香港-破边洲+麦理浩径二段',dist:19.52,gain:986,loss:890,time:'07:16:01',hr:111,alt:320},
+  {date:'2025-02-06',title:'深圳-鲲鹏径八段',dist:8.76,gain:640,loss:539,time:'02:50:30',hr:117,alt:395},
+  {date:'2025-02-15',title:'镇江-南山',dist:10.79,gain:534,loss:529,time:'03:16:11',hr:117,alt:158},
+  {date:'2025-02-17',title:'苏州-灵白线+',dist:7.80,gain:566,loss:551,time:'03:00:00',hr:124,alt:201},
+  {date:'2025-02-20',title:'苏州-灵白线',dist:7.71,gain:453,loss:436,time:'02:35:40',hr:114,alt:198},
+  {date:'2025-03-02',title:'常熟-虞山霸王龙',dist:16.37,gain:810,loss:782,time:'04:54:28',hr:123,alt:274},
+  {date:'2025-03-09',title:'苏州-灵白线(2/3)',dist:5.57,gain:308,loss:301,time:'01:46:53',hr:122,alt:191},
+  {date:'2025-03-11',title:'苏州-旺七',dist:17.64,gain:802,loss:784,time:'05:00:00',hr:119,alt:236},
+  {date:'2025-03-16',title:'镇江-高骊山',dist:7.73,gain:650,loss:633,time:'03:26:10',hr:128,alt:425},
+  {date:'2025-03-21',title:'釜山-五六岛',dist:6.79,gain:280,loss:292,time:'02:25:01',hr:108,alt:117},
+  {date:'2025-03-22',title:'釜山-金井山',dist:8.08,gain:516,loss:503,time:'02:51:04',hr:116,alt:817},
+  {date:'2025-05-15',title:'恩施-清江古河床',dist:10.17,gain:573,loss:545,time:'04:47:36',hr:114,alt:1163},
+  {date:'2025-05-16',title:'恩施-鹿院坪',dist:11.11,gain:973,loss:575,time:'05:21:55',hr:123,alt:1744},
+  {date:'2025-06-04',title:'苏州-穹窿山爱心线',dist:9.31,gain:380,loss:391,time:'02:41:24',hr:127,alt:258},
+  {date:'2025-06-17',title:'常熟-虞山小环线',dist:7.98,gain:342,loss:346,time:'02:10:29',hr:136,alt:248},
+  {date:'2025-06-20',title:'苏州-灵白线',dist:6.91,gain:435,loss:424,time:'02:26:00',hr:144,alt:188},
+  {date:'2025-06-25',title:'常熟-虞山小环线',dist:7.43,gain:345,loss:349,time:'01:52:00',hr:127,alt:243},
+  {date:'2025-06-29',title:'桐庐-马岭古道',dist:11.52,gain:64,loss:134,time:'02:32:00',hr:126,alt:256},
+  {date:'2025-06-30',title:'绩溪-徽杭古道(1/2)',dist:10.91,gain:335,loss:336,time:'02:55:00',hr:130,alt:585},
+  {date:'2025-07-01',title:'桐庐-大奇山',dist:5.11,gain:187,loss:187,time:'01:41:00',hr:117,alt:295},
+  {date:'2025-07-02',title:'常熟-虞山小环线',dist:7.51,gain:333,loss:319,time:'02:13:00',hr:129,alt:249},
+  {date:'2025-07-25',title:'釜山-五六岛',dist:5.53,gain:278,loss:293,time:'02:02:00',hr:129,alt:126},
+  {date:'2025-08-14',title:'苏州-大阳山',dist:3.46,gain:173,loss:169,time:'01:28:00',hr:142,alt:179},
+  {date:'2025-08-22',title:'上饶-龟峰',dist:9.65,gain:493,loss:482,time:'04:50:00',hr:123,alt:363},
+  {date:'2025-08-28',title:'萍乡-武功山',dist:13.97,gain:501,loss:1411,time:'06:06:00',hr:131,alt:1916},
+  {date:'2025-09-05',title:'杭州-古荡',dist:6.15,gain:413,loss:351,time:'02:56:00',hr:126,alt:278},
+  {date:'2025-09-07',title:'苏州-旺山小丑鱼',dist:8.19,gain:343,loss:336,time:'02:23:00',hr:138,alt:268},
+  {date:'2025-09-11',title:'常熟-虞山轻徒',dist:5.20,gain:265,loss:256,time:'01:36:00',hr:124,alt:144},
+  {date:'2025-09-14',title:'温岭-麦理浩径温岭版',dist:7.30,gain:440,loss:448,time:'02:37:00',hr:149,alt:286},
+  {date:'2025-09-15',title:'温州-雁荡山',dist:9.13,gain:232,loss:243,time:'02:31:00',hr:113,alt:214},
+  {date:'2025-09-17',title:'杭州-九溪',dist:8.50,gain:388,loss:312,time:'02:49:00',hr:119,alt:324},
+  {date:'2025-09-24',title:'济州岛-汉拿山',dist:12.31,gain:705,loss:658,time:'03:59:00',hr:130,alt:1680},
+  {date:'2025-09-26',title:'济州岛-偶来小路7号线',dist:15.15,gain:298,loss:278,time:'04:50:00',hr:94,alt:177},
+  {date:'2025-10-21',title:'常熟-虞山轻徒',dist:6.27,gain:284,loss:285,time:'02:09:00',hr:102,alt:250},
+  {date:'2025-10-24',title:'苏州-灵白线(2/3)',dist:5.76,gain:338,loss:324,time:'01:48:00',hr:135,alt:196},
+  {date:'2025-10-26',title:'嘉兴-高阳山',dist:11.42,gain:735,loss:744,time:'04:08:00',hr:127,alt:256},
+  {date:'2025-11-08',title:'香港-大东山',dist:7.87,gain:568,loss:751,time:'03:47:00',hr:140,alt:863},
+  {date:'2025-11-10',title:'深圳-鲲鹏径一段',dist:8.25,gain:518,loss:499,time:'02:13:00',hr:133,alt:370},
+  {date:'2025-11-19',title:'宁波-十字裤',dist:12.19,gain:766,loss:839,time:'04:29:00',hr:120,alt:975},
+  {date:'2025-11-20',title:'宁波-东西岱',dist:11.34,gain:645,loss:634,time:'05:38:00',hr:104,alt:765},
+  {date:'2025-11-27',title:'丽江-干河坝',dist:16.21,gain:957,loss:654,time:'08:46:00',hr:129,alt:3666},
+  {date:'2025-12-05',title:'苏州-旺山小环线',dist:10.55,gain:371,loss:365,time:'04:13:00',hr:99,alt:245},
+  {date:'2025-12-10',title:'济州岛-偶来小路10号线',dist:18.33,gain:373,loss:397,time:'04:52:00',hr:123,alt:177},
+  {date:'2025-12-12',title:'济州岛-偶来小路16号线',dist:18.41,gain:546,loss:385,time:'04:52:00',hr:115,alt:177},
+  {date:'2025-12-17',title:'苏州-穹窿山小恐龙(1/2)',dist:8.01,gain:601,loss:590,time:'02:51:00',hr:122,alt:249},
+  {date:'2025-12-21',title:'无锡-军嶂古道',dist:16.41,gain:754,loss:738,time:'03:52:00',hr:132,alt:238},
+  {date:'2025-12-30',title:'常熟-虞山双爱心',dist:10.13,gain:591,loss:581,time:'02:56:00',hr:135,alt:245},
+];
+
+const data2026 = [
+  {title:'香港-鸡公岭',dist:7.90,gain:742,loss:689,time:'2h40m',hr:138,gainRate:93.97},
+  {title:'香港-元荃古道',dist:11.19,gain:592,loss:573,time:'2h41m',hr:126,gainRate:52.90},
+  {title:'深圳-鲲鹏径第8段',dist:8.83,gain:613,loss:611,time:'2h36m',hr:124,gainRate:69.52},
+  {title:'苏州-大阳山',dist:6.45,gain:472,loss:480,time:'2h3m',hr:131,gainRate:73.32},
+  {title:'杭州-标毅一半',dist:11.40,gain:995,loss:920,time:'3h13m',hr:138,gainRate:87.32},
+  {title:'无锡-惠山',dist:8.80,gain:760,loss:749,time:'3h12m',hr:125,gainRate:86.39},
+  {title:'南京-幕府山',dist:8.89,gain:570,loss:565,time:'2h33m',hr:127,gainRate:64.18},
+  {title:'泰安-泰山',dist:5.02,gain:795,loss:144,time:'1h57m',hr:130,gainRate:158.53},
+  {title:'南京-紫金山',dist:9.48,gain:549,loss:535,time:'2h28m',hr:125,gainRate:57.99},
+  {title:'苏州-旺山',dist:5.21,gain:334,loss:326,time:'1h56m',hr:115,gainRate:64.24},
+  {title:'镇江-南山',dist:11.19,gain:552,loss:528,time:'2h59m',hr:125,gainRate:49.39},
+  {title:'镇江-圌山',dist:7.67,gain:623,loss:607,time:'2h34m',hr:130,gainRate:81.30},
+  {title:'贵阳-黔灵山',dist:8.01,gain:523,loss:506,time:'2h55m',hr:129,gainRate:65.29},
+  {title:'安顺-大圣之眼',dist:6.76,gain:491,loss:474,time:'3h6m',hr:138,gainRate:72.77},
+  {title:'贵阳-鹿冲关',dist:12.14,gain:576,loss:557,time:'3h5m',hr:121,gainRate:47.47},
+  {title:'杭州-小猪线',dist:13.89,gain:607,loss:607,time:'3h45m',hr:131,gainRate:43.73},
+  {title:'杭州-豆腐皮古道',dist:7.59,gain:484,loss:523,time:'2h34m',hr:120,gainRate:63.77},
+  {title:'杭州-湘湖',dist:10.93,gain:695,loss:671,time:'3h20m',hr:127,gainRate:63.64},
+  {title:'杭州-富贵小马',dist:12.35,gain:626,loss:613,time:'3h29m',hr:118,gainRate:50.76},
+  {title:'长治-西太行英姑峡',dist:19.09,gain:1073,loss:1088,time:'8h2m',hr:114,gainRate:56.22},
+  {title:'长治-西太行梯脑山',dist:12.71,gain:840,loss:825,time:'5h43m',hr:115,gainRate:66.13},
+];
+
+// ===== 填表格 =====
+(function() {
+  const tbody = document.getElementById('hikeBody');
+  data2025.forEach((d, i) => {
+    const gainRate = (d.gain / d.dist).toFixed(1);
+    const hrClass = d.hr >= 140 ? 'style="color:#d62828;font-weight:700"' : d.hr >= 130 ? 'style="color:#f77f00;"' : '';
+    const distClass = d.dist >= 15 ? 'style="color:#2d6a4f;font-weight:700"' : '';
+    const gainClass = d.gain >= 800 ? 'style="color:#2d6a4f;font-weight:700"' : '';
+    const highlight = d.dist >= 15 || d.gain >= 800 ? 'class="highlight-row"' : '';
+    tbody.innerHTML += `<tr ${highlight}>
+      <td>${i+1}</td>
+      <td>${d.date}</td>
+      <td style="text-align:left;">${d.title}</td>
+      <td ${distClass}>${d.dist}</td>
+      <td ${gainClass}>${d.gain}</td>
+      <td>${d.loss}</td>
+      <td>${d.time}</td>
+      <td ${hrClass}>${d.hr}</td>
+      <td>${d.alt}</td>
+      <td>${gainRate}</td>
+    </tr>`;
+  });
+})();
+
+// ===== Chart.js图表 =====
+// 1. 月度统计
+const monthlyData = [
+  {m:'1月',cnt:7,dist:66.8,gain:4055},
+  {m:'2月',cnt:5,dist:54.58,gain:3179},
+  {m:'3月',cnt:6,dist:62.18,gain:3366},
+  {m:'4月',cnt:0,dist:0,gain:0},
+  {m:'5月',cnt:2,dist:21.28,gain:1546},
+  {m:'6月',cnt:6,dist:54.06,gain:1902},
+  {m:'7月',cnt:3,dist:18.15,gain:799},
+  {m:'8月',cnt:3,dist:27.08,gain:1168},
+  {m:'9月',cnt:8,dist:71.93,gain:3087},
+  {m:'10月',cnt:3,dist:23.45,gain:1359},
+  {m:'11月',cnt:5,dist:55.86,gain:3456},
+  {m:'12月',cnt:6,dist:81.84,gain:3238},
+];
+
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'bar',
+  data: {
+    labels: monthlyData.map(d=>d.m),
+    datasets: [
+      { label:'次数', data: monthlyData.map(d=>d.cnt), yAxisID:'y1', type:'line', borderColor:'#f77f00', backgroundColor:'#f77f00', borderWidth:2.5, pointRadius:4, tension:0.3 },
+      { label:'里程(km)', data: monthlyData.map(d=>d.dist), yAxisID:'y', backgroundColor:'#74c69d', borderColor:'#40916c', borderWidth:1.5 },
+    ]
+  },
+  options: { responsive:true, plugins:{legend:{position:'top',labels:{font:{size:11}}}}, scales: {
+    y: { title:{display:true,text:'里程 (km)'}, beginAtZero:true },
+    y1: { position:'right', title:{display:true,text:'次数'}, beginAtZero:true, grid:{drawOnChartArea:false} }
+  }}
+});
+
+// 2. 距离分布
+const distBins = {'3-5km':0,'5-7km':0,'7-10km':0,'10-13km':0,'13-16km':0,'16-20km':0};
+data2025.forEach(d => {
+  if(d.dist<5) distBins['3-5km']++;
+  else if(d.dist<7) distBins['5-7km']++;
+  else if(d.dist<10) distBins['7-10km']++;
+  else if(d.dist<13) distBins['10-13km']++;
+  else if(d.dist<16) distBins['13-16km']++;
+  else distBins['16-20km']++;
+});
+new Chart(document.getElementById('distChart'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(distBins),
+    datasets:[{data: Object.values(distBins), backgroundColor:['#b7e4c7','#74c69d','#52b788','#40916c','#2d6a4f','#1b4332'], borderWidth:2}]
+  },
+  options:{responsive:true, plugins:{legend:{position:'right',labels:{font:{size:11}}}}}
+});
+
+// 3. 心率趋势
+const hrTrend = data2025.map((d,i) => ({x:i+1, y:d.hr}));
+new Chart(document.getElementById('hrTrendChart'), {
+  type:'line',
+  data:{
+    labels: data2025.map(d=>d.date.slice(5)),
+    datasets:[{
+      label:'平均心率(bpm)',
+      data: data2025.map(d=>d.hr),
+      borderColor:'#e76f51',
+      backgroundColor:'rgba(231,111,81,0.1)',
+      fill:true, borderWidth:2, pointRadius:3, tension:0.3
+    },{
+      label:'Z2上限(129)',
+      data: data2025.map(()=>129),
+      borderColor:'#40916c', borderDash:[5,5], borderWidth:1.5, pointRadius:0
+    }]
+  },
+  options:{responsive:true, plugins:{legend:{position:'top',labels:{font:{size:11}}}}, scales:{
+    y:{min:85,max:160,title:{display:true,text:'bpm'}},
+    x:{ticks:{maxTicksLimit:12,font:{size:10}}}
+  }}
+});
+
+// 4. 爬升分布
+const gainBins = {'<200m':0,'200-400m':0,'400-600m':0,'600-800m':0,'800-1000m':0,'>1000m':0};
+data2025.forEach(d => {
+  if(d.gain<200) gainBins['<200m']++;
+  else if(d.gain<400) gainBins['200-400m']++;
+  else if(d.gain<600) gainBins['400-600m']++;
+  else if(d.gain<800) gainBins['600-800m']++;
+  else if(d.gain<1000) gainBins['800-1000m']++;
+  else gainBins['>1000m']++;
+});
+new Chart(document.getElementById('gainChart'), {
+  type:'bar',
+  data:{
+    labels: Object.keys(gainBins),
+    datasets:[{label:'次数', data:Object.values(gainBins), backgroundColor:['#b7e4c7','#74c69d','#52b788','#40916c','#2d6a4f','#1b4332'], borderWidth:1}]
+  },
+  options:{responsive:true,plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,title:{display:true,text:'次数'}}}}
+});
+
+// 5. 对比图
+new Chart(document.getElementById('compareChart'), {
+  type:'radar',
+  data:{
+    labels:['平均距离', '平均爬升', '爬升率', '平均心率', '平均配速(逆)'],
+    datasets:[
+      {label:'2025', data:[
+        9.95/19.52*100,  // 归一化
+        503/986*100,
+        52.3/158*100,
+        123.1/149*100,
+        (30-20.9)/(30-15)*100
+      ], borderColor:'#52b788', backgroundColor:'rgba(82,183,136,0.2)', borderWidth:2, pointRadius:4},
+      {label:'2026', data:[
+        9.79/19.52*100,
+        644/986*100,
+        69.9/158*100,
+        126.0/149*100,
+        (30-19.7)/(30-15)*100
+      ], borderColor:'#f77f00', backgroundColor:'rgba(247,127,0,0.2)', borderWidth:2, pointRadius:4}
+    ]
+  },
+  options:{responsive:true, plugins:{legend:{position:'top'}}, scales:{r:{beginAtZero:true,max:100,ticks:{font:{size:10}},pointLabels:{font:{size:11}}}}}
+});
+
+// 6. 2026爬升率
+const sorted26 = [...data2026].sort((a,b)=>b.gainRate-a.gainRate);
+new Chart(document.getElementById('gain26Chart'), {
+  type:'bar',
+  data:{
+    labels: sorted26.map(d=>d.title.replace(/^.*?-/,'')),
+    datasets:[{
+      label:'爬升率(m/km)',
+      data: sorted26.map(d=>d.gainRate.toFixed(1)),
+      backgroundColor: sorted26.map(d=>d.gainRate>100?'#d62828':d.gainRate>80?'#f77f00':d.gainRate>60?'#52b788':'#b7e4c7'),
+      borderWidth:1
+    }]
+  },
+  options:{
+    indexAxis:'y',
+    responsive:true,
+    plugins:{legend:{display:false}},
+    scales:{x:{title:{display:true,text:'m/km'},beginAtZero:true},y:{ticks:{font:{size:10}}}}
+  }
+});
+</script>
+</body>
+</html>
